@@ -7,6 +7,12 @@
   <maintainer email="pmbs.123@gmail.com">Pedro Soares</maintainer>
   <license>MIT</license>
 
+    <depend>rclpy</depend>
+    <depend>tf2_ros</depend>
+    <depend>geometry_msgs</depend>
+    <depend>nav_msgs</depend>
+
+
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_pep257</test_depend>
