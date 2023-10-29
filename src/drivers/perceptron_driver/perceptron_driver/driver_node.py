@@ -1,13 +1,28 @@
 import rclpy
 import time
+from rclpy.time import Time
 import serial
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
-from perceptron_driver.serializers import serialize_odom_msg
+from perceptron_driver.serializers import (
+    serialize_odom_msg,
+    create_tf_transform,
+)
+import tf2_ros
+
+# TODO: Add a timeout for cmd_vel.
+# In case of no cmd_vel message for a long time, the robot should stop,
+# to prevent the robot from running away if the connection is lost.
 
 
 class DriverNode(Node):
+    """Driver node class
+
+    Args:
+        Node (rclpy.node.Node): base class for all nodes in ROS2
+    """
+
     cmd_vel_topic_name = "/cmd_vel"
     odom_topic_name = "/odom"
     base_link_frame_id = "base_link"
@@ -17,6 +32,7 @@ class DriverNode(Node):
     odom_pub = None
     odom_pub_timer = None
     odom_timer_frequency = 10  # Hz
+    tf_boardcast_timer = None
 
     serial_port = "/dev/ttyUSB0"
     serial_baudrate = 9600
@@ -65,7 +81,7 @@ class DriverNode(Node):
         if ack != "OK\r\n":
             self.get_logger().error("Error resetting odometry")
 
-    def init_serial(self) -> None:
+    def check_serial(self) -> None:
         """Check if serial port is open"""
         if not self.serial.is_open:
             self.get_logger().error(
@@ -85,6 +101,8 @@ class DriverNode(Node):
     def init_pubs(self) -> None:
         """Initialize publishers"""
         self.odom_pub = self.create_publisher(Odometry, "odom", 1)
+
+        self.tf_broadcaster = tf2_ros.TransformBroadcaster(self)
 
     def init_timers(self) -> None:
         """Initialize timers"""
@@ -155,6 +173,7 @@ class DriverNode(Node):
         self.serial.write(cmd.encode())
 
         pose = self.serial.readline().decode()
+        now = self.get_clock().now()
 
         try:
             pose = [float(q) for q in pose.split(" ")]
@@ -165,13 +184,26 @@ class DriverNode(Node):
         odom_msg = serialize_odom_msg(
             self.base_link_frame_id,
             self.odom_frame_id,
-            self.get_clock().now(),
+            now,
             pose[0],
             pose[1],
             pose[2],
         )
 
+        tf_odom_base = create_tf_transform(
+            self.odom_frame_id,
+            self.base_link_frame_id,
+            now,
+            pose[0],
+            pose[1],
+            pose[2],
+        )
+
+        # publish odometry
         self.odom_pub.publish(odom_msg)
+
+        # publish tf
+        self.tf_broadcaster.sendTransform(tf_odom_base)
 
     def close_serial(self) -> None:
         self.serial.close()
