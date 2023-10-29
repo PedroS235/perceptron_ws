@@ -4,6 +4,7 @@ import serial
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
+from perceptron_driver.serializers import serialize_odom_msg
 
 
 class DriverNode(Node):
@@ -20,43 +21,85 @@ class DriverNode(Node):
     serial_port = "/dev/ttyUSB0"
     serial_baudrate = 9600
 
+    reset_odom_flag = True
+
     def __init__(self, node_name) -> None:
+        """Constructor of DriverNode class
+
+        Args:
+            node_name (str): name of the node
+        """
         super().__init__(node_name)
         self.read_params()
 
-        self.serial = serial.Serial(
-            self.serial_port, self.serial_baudrate, timeout=0.5
-        )
-        time.sleep(2)
-
-        if self.serial.is_open:
-            self.get_logger().info(
-                f"succesfully connected to {self.serial_port}"
+        try:
+            self.serial = serial.Serial(
+                self.serial_port, self.serial_baudrate, timeout=0.5
             )
-        else:
+        except serial.SerialException:
             self.get_logger().error(
-                f"failed to connect to {self.serial_port}. Exiting..."
+                f"Could not open serial port {self.serial_port}"
             )
             exit()
+
+        # Give some time for serial port to open
+        time.sleep(2)
+
+        self.check_serial()
+
+        if self.reset_odom_flag:
+            self.reset_odom()
+
+        self.init_subs()
+        self.init_pubs()
+        self.init_timers()
+
+        self.get_logger().info("Driver node is ready")
+
+    def reset_odom(self) -> None:
+        """Reset odometry"""
+        cmd = "r\n"
+        self.serial.write(cmd.encode())
+
+        ack = self.serial.readline().decode()
+        if ack != "OK\r\n":
+            self.get_logger().error("Error resetting odometry")
+
+    def init_serial(self) -> None:
+        """Check if serial port is open"""
+        if not self.serial.is_open:
+            self.get_logger().error(
+                f"serial port {self.serial_port} is not open"
+            )
+            exit()
+
+    def init_subs(self) -> None:
+        """Initialize subscribers"""
         self.cmd_vel_sub = self.create_subscription(
             Twist,
             self.cmd_vel_topic_name,
             self.cmd_vel_callback,
             1,
         )
+
+    def init_pubs(self) -> None:
+        """Initialize publishers"""
         self.odom_pub = self.create_publisher(Odometry, "odom", 1)
+
+    def init_timers(self) -> None:
+        """Initialize timers"""
         self.odom_pub_timer = self.create_timer(
             1 / self.odom_timer_frequency, self.odom_callback
         )
 
-        self.get_logger().info("Driver node started")
-
     def read_params(self) -> None:
+        """Read parameters from parameter server"""
         self.declare_parameter("serial_port", self.serial_port)
         self.declare_parameter("serial_baudrate", self.serial_baudrate)
         self.declare_parameter("cmd_vel_topic_name", self.cmd_vel_topic_name)
         self.declare_parameter("base_link_frame_id", self.base_link_frame_id)
         self.declare_parameter("odom_frame_id", self.odom_frame_id)
+        self.declare_parameter("reset_odom", self.reset_odom_flag)
 
         self.serial_port = (
             self.get_parameter("serial_port")
@@ -83,8 +126,16 @@ class DriverNode(Node):
             .get_parameter_value()
             .string_value
         )
+        self.reset_odom_flag = (
+            self.get_parameter("reset_odom").get_parameter_value().bool_value
+        )
 
     def cmd_vel_callback(self, msg: Twist) -> None:
+        """Callback function for cmd_vel topic
+
+        Args:
+            msg (Twist): message from cmd_vel topic
+        """
         flag = "c"
         x = int(msg.linear.x * 1000)
         w = int(msg.angular.z * 1000)
@@ -98,30 +149,29 @@ class DriverNode(Node):
             self.get_logger().error("Error sending command to arduino")
 
     def odom_callback(self) -> None:
+        """Callback function for odom timer"""
         cmd = "q\n"
 
         self.serial.write(cmd.encode())
 
         pose = self.serial.readline().decode()
+
         try:
             pose = [float(q) for q in pose.split(" ")]
         except ValueError:
             self.get_logger().error("Error reading odometry data")
             return
 
-        msg = Odometry()
-        msg.pose.pose.position.x = pose[0]
-        msg.pose.pose.position.y = pose[1]
-        msg.pose.pose.position.z = 0.0
-        msg.pose.pose.orientation.x = 0.0
-        msg.pose.pose.orientation.y = 0.0
-        msg.pose.pose.orientation.z = pose[2]
+        odom_msg = serialize_odom_msg(
+            self.base_link_frame_id,
+            self.odom_frame_id,
+            self.get_clock().now(),
+            pose[0],
+            pose[1],
+            pose[2],
+        )
 
-        msg.header.frame_id = self.odom_frame_id
-        msg.child_frame_id = self.base_link_frame_id
-        msg.header.stamp = self.get_clock().now().to_msg()
-
-        self.odom_pub.publish(msg)
+        self.odom_pub.publish(odom_msg)
 
     def close_serial(self) -> None:
         self.serial.close()
