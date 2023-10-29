@@ -1,7 +1,7 @@
 from nav_msgs.msg import Odometry
-import rclpy
 from rclpy.time import Time
 from tf2_ros import TransformStamped
+from tf_transformations import quaternion_from_euler
 
 
 def serialize_odom_msg(
@@ -18,7 +18,13 @@ def serialize_odom_msg(
     msg.header.stamp = now.to_msg()
     msg.pose.pose.position.x = x
     msg.pose.pose.position.y = y
-    msg.pose.pose.orientation.z = theta
+
+    q = quaternion_from_euler(0, 0, theta)
+    msg.pose.pose.orientation.x = q[0]
+    msg.pose.pose.orientation.y = q[1]
+    msg.pose.pose.orientation.z = q[2]
+    msg.pose.pose.orientation.w = q[3]
+
     return msg
 
 
@@ -31,5 +37,11 @@ def create_tf_transform(
     tf.child_frame_id = child
     tf.transform.translation.x = x
     tf.transform.translation.y = y
-    tf.transform.rotation.z = theta
+
+    q = quaternion_from_euler(0, 0, theta)
+    tf.transform.rotation.x = q[0]
+    tf.transform.rotation.y = q[1]
+    tf.transform.rotation.z = q[2]
+    tf.transform.rotation.w = q[3]
+
     return tf
