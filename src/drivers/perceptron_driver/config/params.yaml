@@ -5,3 +5,4 @@ perceptron_driver:
     base_link_frame_id: 'base_link'
     serial_port: '/dev/ttyS1'
     serial_baudrate: 9600
+    reset_odom: true
