@@ -1,0 +1,7 @@
+perceptron_driver:
+  ros__parameters:
+    cmd_vel_topic_name: 'cmd_vel'
+    odom_fram_id: 'odom'
+    base_link_frame_id: 'base_link'
+    serial_port: '/dev/ttyS1'
+    serial_baudrate: 9600
