@@ -181,8 +181,8 @@ class DriverNode(Node):
             return
 
         odom_msg = serialize_odom_msg(
-            self.base_link_frame_id,
             self.odom_frame_id,
+            self.base_link_frame_id,
             now,
             pose[0],
             pose[1],
