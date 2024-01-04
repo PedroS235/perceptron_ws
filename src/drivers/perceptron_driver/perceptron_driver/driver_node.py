@@ -2,6 +2,7 @@ import rclpy
 import time
 import serial
 from rclpy.node import Node
+from std_msgs.msg import Float64
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from perceptron_driver.serializers import (
@@ -97,6 +98,27 @@ class DriverNode(Node):
             1,
         )
 
+        self.pid_kp_sub = self.create_subscription(
+            Float64,
+            "pid_kp",
+            self.pid_kp_callback,
+            1,
+        )
+
+        self.pid_ki_sub = self.create_subscription(
+            Float64,
+            "pid_ki",
+            self.pid_ki_callback,
+            1,
+        )
+
+        self.pid_kd_sub = self.create_subscription(
+            Float64,
+            "pid_kd",
+            self.pid_kd_callback,
+            1,
+        )
+
     def init_pubs(self) -> None:
         """Initialize publishers"""
         self.odom_pub = self.create_publisher(Odometry, "odom", 1)
@@ -146,6 +168,71 @@ class DriverNode(Node):
         self.reset_odom_flag = (
             self.get_parameter("reset_odom").get_parameter_value().bool_value
         )
+
+    def pid_kp_callback(self, msg: Float64) -> None:
+        """Callback function for pid_kp topic
+
+        Args:
+            msg (Float64): message from pid_kp topic
+        """
+        self.serial.write("g\n".encode())
+        gains = self.serial.readline().decode().strip().split(" ")
+        self.get_logger().info(f"Gains: {gains}")
+        kp = int(msg.data)
+        ki = int(float(gains[1]))
+        kd = int(float(gains[2]))
+
+        cmd = f"p {kp} {ki} {kd}\n"
+
+        self.serial.write(cmd.encode())
+
+        ack = self.serial.readline().decode()
+        if ack != "OK\r\n":
+            self.get_logger().error("Error sending command to arduino")
+
+    def pid_ki_callback(self, msg: Float64) -> None:
+        """Callback function for pid_ki topic
+
+        Args:
+            msg (Float64): message from pid_ki topic
+        """
+        self.serial.write("g\n".encode())
+        gains = self.serial.readline().decode().strip().split(" ")
+        self.get_logger().info(f"Gains: {gains}")
+
+        kp = int(float(gains[0]))
+        ki = int(msg.data)
+        kd = int(float(gains[2]))
+
+        cmd = f"p {kp} {ki} {kd}\n"
+
+        self.serial.write(cmd.encode())
+
+        ack = self.serial.readline().decode()
+        if ack != "OK\r\n":
+            self.get_logger().error("Error sending command to arduino")
+
+    def pid_kd_callback(self, msg: Float64) -> None:
+        """Callback function for pid_kd topic
+
+        Args:
+            msg (Float64): message from pid_kd topic
+        """
+        self.serial.write("g\n".encode())
+        gains = self.serial.readline().decode().strip().split(" ")
+        self.get_logger().info(f"Gains: {gains}")
+
+        kp = int(float(gains[0]))
+        ki = int(float(gains[1]))
+        kd = int(msg.data)
+
+        cmd = f"p {kp} {ki} {kd}\n"
+
+        self.serial.write(cmd.encode())
+
+        ack = self.serial.readline().decode()
+        if ack != "OK\r\n":
+            self.get_logger().error("Error sending command to arduino")
 
     def cmd_vel_callback(self, msg: Twist) -> None:
         """Callback function for cmd_vel topic
