@@ -1,3 +1,0 @@
-[submodule "src/drivers/ldlidar_stl_ros2"]
-	path = src/drivers/ldlidar_stl_ros2
-	url = https://github.com/ldrobotSensorTeam/ldlidar_stl_ros
