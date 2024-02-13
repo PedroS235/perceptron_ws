@@ -9,7 +9,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 
 def launch_perceptron_driver() -> IncludeLaunchDescription:
-    pkg_dir = get_package_share_directory("perceptron_bringup")
+    pkg_dir = get_package_share_directory("perceptron_driver")
     params_file = os.path.join(pkg_dir, "config", "params.yaml")
     perceptron_driver_pkg_dir = get_package_share_directory(
         "perceptron_driver"
