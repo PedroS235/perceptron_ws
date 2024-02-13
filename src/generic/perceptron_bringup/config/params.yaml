@@ -1,0 +1,21 @@
+amcl:
+  ros__parameters:
+    base_frame_id: "base_link"
+
+local_costmap:
+  local_costmap:
+    ros__parameters:
+      robot_radius: 0.15
+
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      robot_radius: 0.15
+
+collision_monitor:
+  ros__parameters:
+    base_frame_id: "base_link"
+
+slam_toolbox:
+  ros__parameters:
+    base_frame: "base_link"
