@@ -25,8 +25,6 @@ def launch_perceptron_driver() -> IncludeLaunchDescription:
 
 
 def launch_lidar_driver() -> IncludeLaunchDescription:
-    pkg_dir = get_package_share_directory("perceptron_bringup")
-    params_file = os.path.join(pkg_dir, "config", "params.yaml")
     ldlidar_pkg_dir = get_package_share_directory("ldlidar_stl_ros2")
     return IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
