@@ -45,6 +45,6 @@ def generate_launch_description():
     ld = LaunchDescription()
 
     ld.add_action(launch_navigation_stack())
-    ld.add_action(generate_slam_toolbox_launch())
+    # ld.add_action(generate_slam_toolbox_launch())
 
     return ld
